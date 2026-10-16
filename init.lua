@@ -104,7 +104,7 @@ end)
 require("clipboard").start(mods, keep)
 
 ------------------------------------------------------------------------
--- Route links to Chrome profiles
+-- Route links to Chrome and Brave profiles
 ------------------------------------------------------------------------
 require("browser").start(keep)
 
