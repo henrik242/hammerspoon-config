@@ -23,7 +23,7 @@ Feature modules return `M` with `M.start(...)`; shared state is passed in, not g
 - Saving any file in `~/.hammerspoon/` reloads the config (pathwatcher).
 - A chooser left open across a reload is orphaned and can't be closed; `clipboard.lua` hides it in `hs.shutdownCallback`. Fix a stuck one with `killall Hammerspoon; open -a Hammerspoon`.
 - `hs.chooser`: the icon column is a fixed 36px wide and as tall as the row, and icons scale to fit, so pad icons on a wider-than-tall canvas to get a fixed small size. The `⌘1`-`⌘9` labels are fixed at 25pt and can't be changed. Row text can be `hs.styledtext` (font, size, `truncateTail`).
-- macOS denies Hammerspoon reading Brave's `Local State` ("Operation not permitted"), so Brave profiles come from `local.lua` by directory; Chrome's is readable.
+- Reading a browser's `Local State` needs macOS to allow Hammerspoon access to other apps' data ("Operation not permitted" otherwise). `browser.lua` shows a dialog when it can't be read (denied or missing).
 - `hs.ipc` is not loaded, so the `hs` CLI doesn't work.
 
 ## Clipboard history

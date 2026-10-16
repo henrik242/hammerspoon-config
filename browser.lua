@@ -6,10 +6,10 @@ local M = {}
 local support = os.getenv("HOME") .. "/Library/Application Support/"
 -- Chromium browsers, in chooser order
 local browsers = {
-  {key = "chrome", app = "/Applications/Google Chrome.app", bundle = "com.google.Chrome",
-   state = support .. "Google/Chrome/Local State"},
-  {key = "brave", app = "/Applications/Brave Browser.app", bundle = "com.brave.Browser",
-   state = support .. "BraveSoftware/Brave-Browser/Local State"},
+  {key = "chrome", name = "Chrome", app = "/Applications/Google Chrome.app",
+   bundle = "com.google.Chrome", state = support .. "Google/Chrome/Local State"},
+  {key = "brave", name = "Brave", app = "/Applications/Brave Browser.app",
+   bundle = "com.brave.Browser", state = support .. "BraveSoftware/Brave-Browser/Local State"},
 }
 
 -- Profiles and routing rules live in the gitignored local.lua (see
@@ -28,6 +28,21 @@ local function contains(url, list)
 end
 
 local keep, chooser
+
+-- Once per load, and deferred so the dialog doesn't hold up the link
+local function warnUnreadable(b, err)
+  if b.warned then return end
+  b.warned = true
+  -- macOS denies reading another app's data until Hammerspoon is allowed
+  local hint = err:find("No such file", 1, true)
+    and "Is " .. b.name .. " installed and started at least once?"
+    or "Allow Hammerspoon to access data from other apps (or give it Full Disk Access)," ..
+      " then restart Hammerspoon."
+  keep[b] = hs.timer.doAfter(0, function()
+    keep[b] = nil
+    hs.dialog.blockAlert("Can't read " .. b.name .. " profiles", err .. "\n\n" .. hint)
+  end)
+end
 
 -- Label from local.lua for a profile. Strings match the signed-in email,
 -- since profile names can repeat; a full email wins over a domain. Tables
@@ -50,11 +65,11 @@ end
 local function profiles()
   local list = {}
   for _, b in ipairs(browsers) do
-    -- macOS may deny reading another app's data (Brave), so fall back to
-    -- the profiles configured for this browser in local.lua
-    local json = hs.fs.attributes(b.state) and hs.json.read(b.state)
-    if json then
-      local state = json.profile or {}
+    local f, err = io.open(b.state)
+    if f then
+      local ok, json = pcall(hs.json.decode, f:read("a"))
+      f:close()
+      local state = ok and json and json.profile or {}
       local info = state.info_cache or {}
       for _, dir in ipairs(state.profiles_order or {}) do
         local p = info[dir] or {}
@@ -62,11 +77,7 @@ local function profiles()
           label = labelFor(b, dir, p.user_name)})
       end
     else
-      for label, want in pairs(accounts) do
-        if type(want) == "table" and want.browser == b.key then
-          table.insert(list, {browser = b, dir = want.dir, name = label, label = label})
-        end
-      end
+      warnUnreadable(b, err)
     end
   end
   return list
@@ -82,15 +93,16 @@ local function open(url, p)
   task:start()
 end
 
-local function choose(url)
-  local list, icons, choices = {}, {}, {}
+local function choose(url, all)
+  local list, choices = {}, {}
   -- Only labelled profiles, unless none are configured
-  for _, p in ipairs(profiles()) do
-    if p.label or not next(accounts) then table.insert(list, p) end
-  end
-  for i, p in ipairs(list) do
-    icons[p.browser] = icons[p.browser] or hs.image.imageFromAppBundle(p.browser.bundle)
-    table.insert(choices, {text = p.label or p.name, subText = p.email, image = icons[p.browser], i = i})
+  for _, p in ipairs(all) do
+    if p.label or not next(accounts) then
+      local b = p.browser
+      b.icon = b.icon or hs.image.imageFromAppBundle(b.bundle)
+      table.insert(list, p)
+      table.insert(choices, {text = p.label or p.name, subText = p.email, image = b.icon, i = #list})
+    end
   end
   -- Held in an upvalue so it is not collected while visible
   chooser = hs.chooser.new(function(choice)
@@ -102,18 +114,19 @@ end
 local function route(_, _, _, url, pid)
   local app = pid and hs.application.applicationForPID(pid)
   local source = app and app:path()
+  local all = profiles()
   -- First matching rule wins; if several profiles share its label, the first
   -- in chooser order is used
   for _, rule in ipairs(rules) do
     if (not rule.source or rule.source == source) and contains(url, rule.match) then
-      for _, p in ipairs(profiles()) do
+      for _, p in ipairs(all) do
         if p.label == rule.profile then return open(url, p) end
       end
       print("browser: no profile labelled " .. rule.profile)
       break
     end
   end
-  choose(url)
+  choose(url, all)
 end
 
 function M.start(keepTable)
