@@ -109,6 +109,11 @@ require("clipboard").start(mods, keep)
 require("browser").start(keep)
 
 ------------------------------------------------------------------------
+-- Nag when gcloud needs a login (after clipboard: chains shutdownCallback)
+------------------------------------------------------------------------
+require("gcloud").start(keep, alert)
+
+------------------------------------------------------------------------
 -- Reload config on save
 ------------------------------------------------------------------------
 keep.configWatcher = hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", hs.reload):start()

@@ -7,6 +7,7 @@ Personal macOS automation.
 - `init.lua` - shared helpers (`mods`, `keep`, `alert`, `run`), window moving/layouts, lock, Bluetooth, reload watcher.
 - `clipboard.lua` - clipboard history (replaces Clipy). `require("clipboard").start(mods, keep)`.
 - `browser.lua` - URL router to Chrome and Brave profiles (replaces Choosy). `require("browser").start(keep)`.
+- `gcloud.lua` - checks `gcloud auth print-access-token` every 30 min and on wake; offers login or a 1/12/24 h snooze (`hs.settings` key `gcloudSnoozeUntil`). `require("gcloud").start(keep, alert)`.
 - `local.lua` - gitignored machine-specific settings (browser profile accounts and routing rules). Template: `local.example.lua`. Keep personal details (emails, employer, work tools) there, not in tracked files.
 
 Feature modules return `M` with `M.start(...)`; shared state is passed in, not global. Plain modules, not Spoons. Small features stay in `init.lua`.
