@@ -41,8 +41,34 @@ local function fill(unit, label)
   end
 end
 
-hs.hotkey.bind(mods, "left",  fill(hs.layout.left50,  "⬅️ "))
-hs.hotkey.bind(mods, "right", fill(hs.layout.right50, "➡️ "))
+-- Repeated presses cycle 1/2 -> 1/3 -> 2/3. Remember the frame we set per
+-- window rather than matching geometry: terminals and others round sizes.
+local sideState = {}
+local steps = {{0.5, "½"}, {1/3, "⅓"}, {2/3, "⅔"}}
+
+local function sameFrame(a, b)
+  return math.abs(a.x - b.x) < 2 and math.abs(a.y - b.y) < 2
+     and math.abs(a.w - b.w) < 2 and math.abs(a.h - b.h) < 2
+end
+
+local function side(name, arrow)
+  return function()
+    local win = hs.window.focusedWindow()
+    if not win then return end
+    local prev = sideState[win:id()]
+    local i = 1
+    if prev and prev.side == name and sameFrame(prev.frame, win:frame()) then
+      i = prev.step % #steps + 1
+    end
+    local w = steps[i][1]
+    win:moveToUnit({x = name == "left" and 0 or 1 - w, y = 0, w = w, h = 1})
+    sideState[win:id()] = {side = name, step = i, frame = win:frame()}
+    alert(arrow .. steps[i][2], win:screen())
+  end
+end
+
+hs.hotkey.bind(mods, "left",  side("left",  "⬅️ "))
+hs.hotkey.bind(mods, "right", side("right", "➡️ "))
 hs.hotkey.bind(mods, "+",     fill(hs.layout.maximized, "⏹️"))
 hs.hotkey.bind(mods, "-",     fill({x=0.25, y=0.12, w=0.5, h=0.75}, "⏺️"))
 
